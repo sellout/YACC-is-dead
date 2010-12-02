@@ -1,9 +1,13 @@
 (defpackage yid
   (:use #:cl)
-  (:export #:parser #:parse
-           #:eq-t
-           #:red
-           #:choice #:concatenation #:replication))
+  (:export #:parser
+           #:eq-t #:emp #:eps #:con #:alt #:rep #:red
+           #:epsilon
+           #:parse-full #:parse
+           #:choice #:concatenation #:replication
+           ;; FIXME: probably shouldn't export these
+           #:is-empty-p #:stream-cons #:make-empty-stream
+           #:x #:y))
 
 (in-package #:yid)
 
@@ -57,9 +61,8 @@
    (is-empty :initform nil)
    (is-nullable :initform t)))
 
-(defclass epsilon (eps)
-  ()
-  (:default-initargs :generator (stream-cons "" (make-empty-stream))))
+(defvar epsilon
+  (make-instance 'eps :generator (stream-cons "" (make-empty-stream))))
 
 (defclass con (parser)
   ((first :initarg :first)
