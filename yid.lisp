@@ -263,11 +263,15 @@
              (setf (is-nullable parser)
                    (is-nullable (slot-value parser 'parser))))))
 
-(defun choice (parser1 parser2)
-  (make-instance 'alt :choice1 parser1 :choice2 parser2))
+(defun choice (&rest parsers)
+  (reduce (lambda (parser1 parser2)
+            (make-instance 'alt :choice1 parser1 :choice2 parser2))
+          parsers))
 
-(defun concatenation (parser1 parser2)
-  (make-instance 'con :first parser1 :second parser2))
+(defun concatenation (&rest parsers)
+  (reduce (lambda (parser1 parser2)
+            (make-instance 'con :first parser1 :second parser2))
+          parsers))
 
 (defun replication (parser)
   (make-instance 'rep :parser parser))
