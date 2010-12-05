@@ -6,23 +6,84 @@
            #:parse-full #:parse
            #:choice #:concatenation #:replication
            ;; FIXME: probably shouldn't export these
-           #:is-empty-p #:stream-cons #:make-empty-stream
-           #:x #:y))
+           #:lazy-let #:make-lazy-string-input-stream))
 
 (in-package #:yid)
 
-;;; Some helper functions to make the translation from Scala easier, until I
-;;; think about how to do things more Lispily
+;;; Giving us some laziness to take advantage of
 
-(defun is-empty-p (stream)
-  (not (peek-char 'character stream nil)))
+(defclass lazy-form ()
+  ((form :initarg :form :reader form)
+   (forced-value :accessor forced-value)))
 
-(defun stream-cons (item stream)
-  (make-concatenated-stream (make-string-input-stream item)
-                            stream))
+(defmethod make-load-form ((object lazy-form) &optional environment)
+  (declare (ignore environment))
+  `(make-instance ',(class-name (class-of object)) :form ,(form object)))
 
-(defun make-empty-stream ()
-  (make-string-input-stream ""))
+(defmacro delay (form &optional (class 'lazy-form))
+  `(make-instance ',class :form (lambda () ,form)))
+
+(defgeneric force (form)
+  (:documentation "Acts as IDENTITY on all objects except LAZY-FORMs (created
+                   with DELAY), in which case it evaluates them.")
+  (:method (form)
+    form)
+  (:method ((form lazy-form))
+    (if (slot-boundp form 'forced-value)
+        (forced-value form)
+        (setf (forced-value form) (funcall (form form))))))
+
+(defmacro cons-stream (head tail)
+  `(cons ,head (delay ,tail)))
+
+(defun make-lazy-string-input-stream (string)
+  (if (> (length string) 0)
+      (cons-stream (aref string 0)
+                   (delay (make-lazy-string-input-stream (subseq string 1))))
+      '()))
+
+;; Probably don't need STREAM-CAR and -CDR, as CDR will return the lazy value,
+;; then it'll be expanded as soon as a method is called on it.
+(defun stream-car (stream)
+  (car stream))
+
+(defun stream-cdr (stream)
+  (force (cdr stream)))
+
+(defun force-stream (stream)
+  (if (endp stream)
+      '()
+      (cons (stream-car stream) (force-stream (stream-cdr stream)))))
+
+(defun map-stream (fn &rest streams)
+  (if (some #'endp streams)
+      '()
+      (cons-stream (apply fn (mapcar #'stream-car streams))
+                   (apply #'map-stream fn (mapcar #'stream-cdr streams)))))
+
+(defun append-streams (stream1 stream2)
+  (if (endp stream1)
+      stream2
+      (cons-stream (stream-car stream1)
+                   (append-streams (stream-cdr stream1) stream2))))
+
+(defmacro lazy-let ((&rest variables) &body body)
+  `(let ,(mapcar #'car variables)
+     (setf ,@(reduce #'append variables))
+     ,@body))
+
+(defmethod no-applicable-method :around (gf &rest args)
+  (let* ((found-lazy-p nil)
+         (forced-args (mapcar (lambda (arg)
+                                (if (typep arg 'lazy-form)
+                                    (progn
+                                      (setf found-lazy-p t)
+                                      (force arg))
+                                    arg))
+                              args)))
+    (if found-lazy-p
+        (apply gf forced-args)
+        (call-next-method))))
 
 ;;; Ok, here's the real stuff
 
@@ -31,12 +92,8 @@
    (seen :initform () :accessor seen)))
 
 (defmethod or-with ((object change-cell) changed)
-  (or (slot-value object 'changed)
-      (setf (slot-value object 'changed) changed)))
-
-(defclass concatenation ()
-  ((x :initarg :x :reader x)
-   (y :initarg :y :reader y)))
+  (or (slot-value object 'changedp)
+      (setf (slot-value object 'changedp) changed)))
 
 (defclass parser ()
   ((parse-null :initform '())
@@ -47,30 +104,44 @@
 
 (defclass eq-t (parser)
   ((value :initarg :value)
-   (parse-null :initform ())
+   (parse-null :initform '())
    (is-empty :initform nil)
    (is-nullable :initform nil)))
 
+(defun eq-t (value)
+  (delay (make-instance 'eq-t :value value)))
+
 (defclass emp (parser)
-  ((parse-null :initform ())
+  ((parse-null :initform '())
    (is-empty :initform t)
    (is-nullable :initform nil)))
+
+(defun emp ()
+  (delay (make-instance 'emp)))
 
 (defclass eps (parser)
   ((generator :initarg :generator :reader generator)
    (is-empty :initform nil)
    (is-nullable :initform t)))
 
-(defvar epsilon
-  (make-instance 'eps :generator (stream-cons "" (make-empty-stream))))
+(defun eps (generator)
+  (delay (make-instance 'eps :generator generator)))
+
+(defparameter epsilon (eps (cons-stream '() '())))
 
 (defclass con (parser)
-  ((first :initarg :first)
-   (second :initarg :second)))
+  ((first :initarg :first :reader first*)
+   (second :initarg :second :reader second*)))
+
+(defmacro con (first second)
+  `(delay (make-instance 'con :first ,first :second ,second)))
 
 (defclass alt (parser)
   ((choice1 :initarg :choice1 :reader choice1)
    (choice2 :initarg :choice2 :reader choice2)))
+
+(defmacro alt (choice1 choice2)
+  `(delay (make-instance 'alt :choice1 ,choice1 :choice2 ,choice2)))
 
 (defclass rep (parser)
   ((parser :initarg :parser)
@@ -78,21 +149,31 @@
    (is-empty :initform nil)
    (is-nullable :initform t)))
 
+(defmacro rep (parser)
+  `(delay (make-instance 'rep :parser ,parser)))
+
 (defclass red (parser)
   ((parser :initarg :parser)
    (f :initarg :f)))
 
-(defun parse-null (parser)
+(defmacro red (parser f)
+  `(delay (make-instance 'red :parser ,parser :f ,f)))
+
+(defmethod parse-null ((parser parser))
   (if (is-empty parser)
       '()
-      (slot-value parser 'parse-null)))
+      (progn
+        (initialize-parser parser)
+        (slot-value parser 'parse-null))))
 
-(defun is-nullable (parser)
+(defmethod is-nullable ((parser parser))
   (if (is-empty parser)
       nil
-      (slot-value parser 'is-nullable)))
+      (progn
+        (initialize-parser parser)
+        (slot-value parser 'is-nullable))))
 
-(defun is-empty (parser)
+(defmethod is-empty ((parser parser))
   (initialize-parser parser)
   (slot-value parser 'is-empty))
 
@@ -106,12 +187,12 @@
     t))
 
 (defun (setf is-empty) (value parser)
-  (when (not (eq (slot-value parser 'is-empty) value))
+  (when (not (eq (not (slot-value parser 'is-empty)) (not value)))
     (setf (slot-value parser 'is-empty) value)
     t))
 
 (defun (setf is-nullable) (value parser)
-  (when (not (eq (slot-value parser 'is-nullable) value))
+  (when (not (eq (not (slot-value parser 'is-nullable)) (not value)))
     (setf (slot-value parser 'is-nullable) value)
     t))
 
@@ -119,117 +200,110 @@
   (when (not (initializedp parser))
     (setf (initializedp parser) t)
     (loop
-       with change = (make-instance 'change-cell)
+       for change = (make-instance 'change-cell)
        do (update-child-based-attributes parser change)
        while (changedp change))))
 
 (defgeneric derive (parser value)
   (:method :around ((parser parser) value)
-    (cond ((is-empty parser) (make-instance 'emp))
+    (cond ((is-empty parser) (emp))
           ((gethash value (cache parser)) (gethash value (cache parser)))
           (t (setf (gethash value (cache parser)) (call-next-method)))))
   (:method ((parser eq-t) value)
     (if (equal (slot-value parser 'value) value)
-        (make-instance 'eps :generator (stream-cons value (make-empty-stream)))
-        (make-instance 'emp)))
+        (eps (cons-stream value '()))
+        (emp)))
   (:method ((parser emp) value)
     (declare (ignore value))
     parser)
   (:method ((parser eps) value)
     (declare (ignore value))
-    (make-instance 'emp))
+    (emp))
   (:method ((parser con) value)
-    (if (is-nullable (first parser))
-        (make-instance
-         'alt
-         :choice1 (make-instance 'con
-                                 :first (derive (first parser) value)
-                                 :second (second parser))
-         :choice2 (make-instance 'con
-                                 :first (make-instance
-                                         'eps
-                                         :generator (parse (first parser)
-                                                           (make-empty-stream)))
-                                 :second (derive (second parser)
-                                                 value)))
-        (make-instance 'con
-                       :first (derive (first parser) value)
-                       :second (second parser))))
+    (if (is-nullable (first* parser))
+        (alt (con (derive (first* parser) value)
+                  (second* parser))
+             (con (eps (map-stream #'first (parse (first* parser) '())))
+                  (derive (second* parser) value)))
+        (con (derive (first* parser) value) (second* parser))))
   (:method ((parser alt) value)
     (cond ((is-empty (choice1 parser)) (derive (choice2 parser) value))
           ((is-empty (choice2 parser)) (derive (choice1 parser) value))
-          (t (make-instance 'alt
-                            :choice1 (derive (choice1 parser) value)
-                            :choice2 (derive (choice2 parser) value)))))
+          (t (alt (derive (choice1 parser) value)
+                  (derive (choice2 parser) value)))))
   (:method ((parser rep) value)
-    (make-instance 'red
-                   :parser (make-instance 'con
-                                          :first (derive (slot-value parser
-                                                                     'parser)
-                                                         value)
-                                          :second parser)
-                   :f (lambda (alist) (cons (x alist) (y alist)))))
+    (red (con (derive (slot-value parser 'parser) value)
+              parser)
+         #'identity))
   (:method ((parser red) value)
-    (make-instance 'red
-                   :parser (derive (slot-value parser 'parser) value)
-                   :f (slot-value parser 'f))))
+    (red (derive (slot-value parser 'parser) value)
+         (slot-value parser 'f))))
 
 (defgeneric parse-full (parser &optional input-stream)
   (:method ((parser parser) &optional (input-stream *standard-input*))
-    (handler-case
-        (parse-full (derive parser (read-char input-stream)) input-stream)
-      (end-of-file () (make-string-input-stream (parse-null parser)))))
+    (if (endp input-stream)
+        (parse-null parser)
+        (parse-full (derive parser (stream-car input-stream))
+                    (stream-cdr input-stream))))
   (:method ((parser red) &optional (input-stream *standard-input*))
-    (let ((a (parse-full (slot-value parser 'parser) input-stream)))
-      (funcall (slot-value parser 'f) a))))
+    (map-stream (lambda (a) (funcall (slot-value parser 'f) a))
+                (parse-full (slot-value parser 'parser) input-stream))))
 
 (defgeneric parse (parser &optional input-stream)
   (:method ((parser parser) &optional (input-stream *standard-input*))
-    (handler-case
-        (combine-even (parse (derive parser (read-char input-stream))
-                             input-stream)
-                      (stream-cons (parse-full parser (make-empty-stream))
-                                   input-stream))
-      (end-of-file () (make-string-input-stream (parse-null parser)))))
+    (if (endp input-stream)
+        (mapcar (lambda (a) (list a '()))
+                (parse-null parser))
+        (combine-even (parse (derive parser (stream-car input-stream))
+                             (stream-cdr input-stream))
+                      (map-stream (lambda (a) (list a input-stream))
+                                  (parse-full parser '())))))
   (:method ((parser eq-t) &optional (input-stream *standard-input*))
-    (if (equal (peek-char 'character input-stream nil)
+    (if (equal (peek-char nil input-stream nil)
                (slot-value parser 'value))
-        (make-concatenated-stream input-stream (make-empty-stream))
-        (make-empty-stream)))
+        (cons-stream (list (stream-car input-stream) (stream-cdr input-stream))
+                     '())
+        '()))
   (:method ((parser emp) &optional (input-stream *standard-input*))
     (declare (ignore input-stream))
-    (make-empty-stream))
+    '())
   (:method ((parser eps) &optional (input-stream *standard-input*))
-    (values (generator parser) input-stream))
+    (map-stream (lambda (a) (list a input-stream)) (generator parser)))
   (:method ((parser red) &optional (input-stream *standard-input*))
-    (multiple-value-bind (a rest)
-        (parse (slot-value parser 'parser) input-stream)
-      (values (funcall (slot-value parser 'f) a) rest))))
+    (map-stream (lambda (result)
+                  (destructuring-bind (a &rest rest) result
+                    (cons (funcall (slot-value parser 'f) a) rest)))
+                (parse (slot-value parser 'parser) input-stream))))
 
 (defgeneric update-child-based-attributes (parser change)
+  (:method :before ((parser parser) change)
+           (declare (ignore change)))
   (:method ((parser parser) change)
     (declare (ignore change))
     (values))
   (:method ((parser eps) change)
-    (or-with change (setf (parse-null parser) (generator parser))))
+    (or-with change
+             (setf (parse-null parser) (force-stream (generator parser)))))
   (:method ((parser con) change)
     (when (not (find parser (seen change)))
       (push parser (seen change))
-      (update-child-based-attributes (first parser) change)
-      (update-child-based-attributes (second parser) change)
+      (update-child-based-attributes (first* parser) change)
+      (update-child-based-attributes (second* parser) change)
       (setf (initializedp parser) t))
     (or-with change
              (setf (parse-null parser)
-                   (make-instance 'concatenation
-                                  :x (parse-null (first parser))
-                                  :y (parse-null (second parser)))))
+                   (remove-duplicates
+                    (mapcar (lambda (a) (mapcan (lambda (b) (cons a b))
+                                                (parse-null (second* parser))))
+                            (parse-null (first* parser)))
+                    :test #'equal)))
     (or-with change
-             (setf (is-empty parser) (or (is-empty (first parser))
-                                         (is-empty (second parser)))))
+             (setf (is-empty parser) (or (is-empty (first* parser))
+                                         (is-empty (second* parser)))))
     (or-with change
              (setf (is-nullable parser) (and (not (is-empty parser))
-                                             (is-nullable (first parser))
-                                             (is-nullable (second parser))))))
+                                             (is-nullable (first* parser))
+                                             (is-nullable (second* parser))))))
   (:method ((parser alt) change)
     (when (not (find parser (seen change)))
       (push parser (seen change))
@@ -237,10 +311,12 @@
       (update-child-based-attributes (choice2 parser) change)
       (setf (initializedp parser) t))
     (or-with change
-             (setf (parse-null parser) (append (parse-null (choice1 parser))
-                                               (parse-null (choice2 parser)))))
-    (or-with change (setf (is-empty parser) (and (is-empty (choice1 parser))
-                                                 (is-empty (choice2 parser)))))
+             (setf (parse-null parser)
+                   (union (parse-null (choice1 parser))
+                          (parse-null (choice2 parser)))))
+    (or-with change
+             (setf (is-empty parser) (and (is-empty (choice1 parser))
+                                          (is-empty (choice2 parser)))))
     (or-with change
              (setf (is-nullable parser)
                    (and (not (is-empty parser))
@@ -258,33 +334,40 @@
       (setf (initializedp parser) t))
     (or-with change
              (setf (parse-null parser)
-                   (mapcar (slot-value parser 'f)
-                           (parse-null (slot-value parser 'parser)))))
+                   (remove-duplicates
+                    (mapcar (slot-value parser 'f)
+                            (parse-null (slot-value parser 'parser)))
+                    :test #'equal)))
     (or-with change
              (setf (is-empty parser) (is-empty (slot-value parser 'parser))))
     (or-with change
              (setf (is-nullable parser)
                    (is-nullable (slot-value parser 'parser))))))
 
-(defun choice (&rest parsers)
-  (reduce (lambda (parser1 parser2)
-            (make-instance 'alt :choice1 parser1 :choice2 parser2))
-          parsers))
+(defmacro choice (&rest parsers)
+  (if (= (length parsers) 1)
+      `,(car parsers)
+      `(alt ,(car parsers) (choice ,@(cdr parsers)))))
 
-(defun concatenation (&rest parsers)
-  (reduce (lambda (parser1 parser2)
-            (make-instance 'con :first parser1 :second parser2))
-          parsers))
 
-(defun replication (parser)
-  (make-instance 'rep :parser parser))
+(defmacro concatenation (&rest parsers)
+  (if (= (length parsers) 1)
+      `,(car parsers)
+      `(con ,(car parsers) (concatenation ,@(cdr parsers)))))
+
+(defmacro replication (parser)
+  `(rep ,parser))
 
 (defun combine-even (s1 s2)
-  (cond ((not (is-empty-p s1)) (stream-cons (read-char s1) (combine-odd s1 s2)))
-        ((not (is-empty-p s2)) (stream-cons (read-char s2) (combine-odd s1 s2)))
-        (t (make-empty-stream))))
+  (cond ((not (endp s1))
+         (cons-stream (stream-car s1) (combine-odd (stream-cdr s1) s2)))
+        ((not (endp s2))
+         (cons-stream (stream-car s2) (combine-odd s1 (stream-cdr s2))))
+        (t '())))
 
 (defun combine-odd (s1 s2)
-  (cond ((not (is-empty-p s2)) (stream-cons (read-char s2) (combine-odd s1 s2)))
-        ((not (is-empty-p s1)) (stream-cons (read-char s1) (combine-odd s1 s2)))
-        (t (make-empty-stream))))
+  (cond ((not (endp s2))
+         (cons-stream (stream-car s2) (combine-even s1 (stream-cdr s2))))
+        ((not (endp s1))
+         (cons-stream (stream-car s1) (combine-even (stream-cdr s1) s2)))
+        (t '())))
