@@ -77,7 +77,8 @@
                               (==> (rule (concatenation exp s exp))
                                    (lambda (cat)
                                      (make-instance 'sum
-                                                    :e1 (car cat) :e2 (cdr (cdr cat)))))
+                                                    :e1 (car cat)
+                                                    :e2 (cddr cat))))
                               (==> (rule (concatenation exp s x))
                                    (lambda (cat)
                                      (make-instance 'sum
@@ -85,7 +86,7 @@
                               (==> (rule (concatenation x s exp))
                                    (lambda (cat)
                                      (make-instance 'sum
-                                                    :e1 one :e2 (cdr (cdr cat)))))
+                                                    :e1 one :e2 (cddr cat))))
                               (==> (rule exp) #'identity)
                               (==> (rule epsilon)
                                    (lambda (ep) (declare (ignore ep)) one)))))

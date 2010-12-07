@@ -22,9 +22,10 @@
 
 (defmethod print-object ((c lazy-form) stream)
   (print-unreadable-object (c stream :type t)
-    (if (slot-boundp c 'forced-value)
-        (print-object (forced-value c) stream)
-        'un-forced)))
+    (print-object (if (slot-boundp c 'forced-value)
+                      (forced-value c)
+                      :delayed)
+                  stream)))
 
 (defmacro delay (form &optional (class 'lazy-form))
   `(make-instance ',class :form (lambda () ,form)))
@@ -45,7 +46,7 @@
 (defun make-lazy-string-input-stream (string)
   (if (> (length string) 0)
       (cons-stream (aref string 0)
-                   (delay (make-lazy-string-input-stream (subseq string 1))))
+                   (make-lazy-string-input-stream (subseq string 1)))
       '()))
 
 ;; Probably don't need STREAM-CAR and -CDR, as CDR will return the lazy value,
@@ -116,7 +117,7 @@
 
 (defmethod print-object ((c eq-t) stream)
   (print-unreadable-object (c stream :type t :identity t)
-    (print (slot-value c 'value))))
+    (prin1 (slot-value c 'value) stream)))
 
 (defun eq-t (value)
   (delay (make-instance 'eq-t :value value)))
@@ -242,9 +243,8 @@
           (t (alt (derive (choice1 parser) value)
                   (derive (choice2 parser) value)))))
   (:method ((parser rep) value)
-    (red (con (derive (slot-value parser 'parser) value)
-              parser)
-         #'identity))
+    (con (derive (slot-value parser 'parser) value)
+         parser))
   (:method ((parser red) value)
     (red (derive (slot-value parser 'parser) value)
          (slot-value parser 'f))))
@@ -269,8 +269,7 @@
                       (map-stream (lambda (a) (list a input-stream))
                                   (parse-full parser '())))))
   (:method ((parser eq-t) input-stream)
-    (if (equal (peek-char nil input-stream nil)
-               (slot-value parser 'value))
+    (if (equal (stream-car input-stream) (slot-value parser 'value))
         (cons-stream (list (stream-car input-stream) (stream-cdr input-stream))
                      '())
         '()))
@@ -286,8 +285,6 @@
                 (parse (slot-value parser 'parser) input-stream))))
 
 (defgeneric update-child-based-attributes (parser change)
-  (:method :before ((parser parser) change)
-           (declare (ignore change)))
   (:method ((parser parser) change)
     (declare (ignore change))
     (values))
@@ -303,8 +300,9 @@
     (or-with change
              (setf (parse-null parser)
                    (remove-duplicates
-                    (mapcar (lambda (a) (mapcan (lambda (b) (cons a b))
-                                                (parse-null (second* parser))))
+                    (mapcar (lambda (a)
+                              (mapcan (lambda (b) (cons a b))
+                                      (parse-null (second* parser))))
                             (parse-null (first* parser)))
                     :test #'equal)))
     (or-with change
