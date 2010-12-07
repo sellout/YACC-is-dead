@@ -311,8 +311,8 @@
     (or-with change
              (setf (parse-null parser)
                    (remove-duplicates
-                    (mapcar (lambda (a)
-                              (mapcan (lambda (b) (cons a b))
+                    (mapcan (lambda (a)
+                              (mapcar (lambda (b) (cons a b))
                                       (parse-null (second* parser))))
                             (parse-null (first* parser)))
                     :test #'equal)))
