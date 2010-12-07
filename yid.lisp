@@ -184,16 +184,12 @@
 (defmethod parse-null ((parser parser))
   (if (is-empty parser)
       '()
-      (progn
-        (initialize-parser parser)
-        (slot-value parser 'parse-null))))
+      (slot-value parser 'parse-null)))
 
 (defmethod is-nullable ((parser parser))
   (if (is-empty parser)
       nil
-      (progn
-        (initialize-parser parser)
-        (slot-value parser 'is-nullable))))
+      (slot-value parser 'is-nullable)))
 
 (defmethod is-empty ((parser parser))
   (initialize-parser parser)
