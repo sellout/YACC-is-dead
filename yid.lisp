@@ -6,7 +6,7 @@
            #:parse-full #:parse
            #:choice #:concatenation #:replication
            ;; FIXME: probably shouldn't export these
-           #:lazy-let #:make-lazy-string-input-stream))
+           #:lazy-let #:make-lazy-input-stream))
 
 (in-package #:yid)
 
@@ -43,11 +43,22 @@
 (defmacro cons-stream (head tail)
   `(cons ,head (delay ,tail)))
 
-(defun make-lazy-string-input-stream (string)
-  (if (> (length string) 0)
-      (cons-stream (aref string 0)
-                   (make-lazy-string-input-stream (subseq string 1)))
-      '()))
+(defun make-lazy-input-stream (input-stream)
+  (if (subtypep (stream-element-type input-stream) 'character)
+      (make-lazy-character-input-stream input-stream)
+      (make-lazy-byte-input-stream input-stream)))
+
+(defun make-lazy-character-input-stream (input-stream)
+  (handler-case
+      (cons-stream (read-char input-stream)
+                   (make-lazy-character-input-stream input-stream))
+    (end-of-file () '())))
+
+(defun make-lazy-byte-input-stream (input-stream)
+  (handler-case
+      (cons-stream (read-byte input-stream)
+                   (make-lazy-byte-input-stream input-stream))
+    (end-of-file () '())))
 
 ;; Probably don't need STREAM-CAR and -CDR, as CDR will return the lazy value,
 ;; then it'll be expanded as soon as a method is called on it.
