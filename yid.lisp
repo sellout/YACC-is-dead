@@ -149,7 +149,7 @@
 (defun eps (generator)
   (delay (make-instance 'eps :generator generator)))
 
-(defparameter epsilon (eps '()))
+(defparameter epsilon (eps (cons-stream '() '())))
 
 (defclass con (parser)
   ((first :initarg :first :reader first*)
