@@ -12,7 +12,7 @@
 (defun ==> (reducible reduction)
   (red (parser reducible) reduction))
 
-(eval-when (:compile-toplevel :load-toplevel)  
+(eval-when (:compile-toplevel :load-toplevel :execute)  
   (defmacro benchmark (&body body)
     (let ((startvar (gensym)))
       `(let ((,startvar (get-universal-time)))
