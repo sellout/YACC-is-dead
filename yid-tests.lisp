@@ -1,5 +1,5 @@
 (defpackage yid-tests
-  (:use #:cl #:yid))
+  (:use #:cl #:yid #:lazy))
 
 (in-package #:yid-tests)
 
