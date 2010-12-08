@@ -4,7 +4,7 @@
            #:eq-t #:emp #:eps #:con #:alt #:rep #:red
            #:epsilon
            #:parse-full #:parse
-           #:choice #:concatenation #:replication
+           #:choice #:~ #:*+ #:==>
            ;; FIXME: probably shouldn't export these
            #:lazy-let #:make-lazy-input-stream))
 
@@ -364,14 +364,16 @@
       `,(car parsers)
       `(alt ,(car parsers) (choice ,@(cdr parsers)))))
 
-
-(defmacro concatenation (&rest parsers)
+(defmacro ~ (&rest parsers)
   (if (= (length parsers) 1)
       `,(car parsers)
       `(con ,(car parsers) (concatenation ,@(cdr parsers)))))
 
-(defmacro replication (parser)
+(defmacro *+ (parser)
   `(rep ,parser))
+
+(defmacro ==> (parser function)
+  `(red ,parser ,function))
 
 (defun combine-even (s1 s2)
   (cond (s1 (cons-stream (stream-car s1) (combine-odd (stream-cdr s1) s2)))
