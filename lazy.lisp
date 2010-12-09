@@ -1,10 +1,10 @@
 (defpackage lazy
   (:use #:cl)
-  (:export #:delay #:force
-           #:cons-stream #:make-lazy-input-stream
-           #:stream-car #:stream-cdr
-           #:force-stream #:map-stream #:append-streams
-           #:lazy-let))
+  (:export #:delay #:force #:force-stream #:lazy-let
+           #:cons-stream #:stream-car #:stream-cdr #:stream-caar
+           #:stream* #:stream-nth #:append-streams #:stream-nthcdr
+           #:stream-rest #:stream-member #:map-stream
+           #:make-lazy-input-stream))
 
 (in-package #:lazy)
 
@@ -36,8 +36,84 @@
         (forced-value form)
         (setf (forced-value form) (funcall (form form))))))
 
+(defun force-stream (stream)
+  (if (endp stream)
+      '()
+      (cons (stream-car stream) (force-stream (stream-cdr stream)))))
+
+;;; Data & Control Flow
+
+(defmacro lazy-let ((&rest variables) &body body)
+  `(let ,(mapcar #'car variables)
+     (setf ,@(reduce #'append variables))
+     ,@body))
+
+;;; Objects
+
+(defmethod no-applicable-method :around (gf &rest args)
+  (let* ((found-lazy-p nil)
+         (forced-args (mapcar (lambda (arg)
+                                (if (typep arg 'lazy-form)
+                                    (progn
+                                      (setf found-lazy-p t)
+                                      (force arg))
+                                    arg))
+                              args)))
+    (if found-lazy-p
+        (apply gf forced-args)
+        (call-next-method))))
+
+;;; Conses
+
 (defmacro cons-stream (head tail)
   `(cons ,head (delay ,tail)))
+
+(defun stream-car (stream)
+  "Identical to CAR, just exists for naming consistency."
+  (car stream))
+
+(defun stream-cdr (stream)
+  (force (cdr stream)))
+
+(defun stream-caar (stream)
+  "Identical to CAAR, just exists for naming consistency."
+  (stream-car (stream-car stream)))
+
+(defmacro stream* (&rest objects)
+  `(if (= (length ,objects) 1)
+      ,(car objects)
+      (list* ,@(butlast objects) (delay ,(car (last objects))))))
+
+(defun stream-nth (n stream)
+  (stream-car (stream-nthcdr n stream)))
+
+(defun append-streams (stream1 stream2)
+  (if (endp stream1)
+      stream2
+      (cons-stream (stream-car stream1)
+                   (append-streams (stream-cdr stream1) stream2))))
+
+(defun stream-nthcdr (n stream)
+  (loop
+     for i from n downto 0
+     for cdr = stream then (stream-cdr cdr)
+     finally (return cdr)))
+
+(defun stream-rest (stream)
+  (stream-cdr stream))
+
+(defun stream-member (item stream &key key test test-not)
+  (if (funcall test item (funcall key (stream-car stream)))
+      stream
+      (stream-member item (stream-cdr stream) :key key :test test :test-not test-not)))
+
+(defun map-stream (fn &rest streams)
+  (if (some #'endp streams)
+      '()
+      (cons-stream (apply fn (mapcar #'stream-car streams))
+                   (apply #'map-stream fn (mapcar #'stream-cdr streams)))))
+
+;;; IO Streams
 
 (defun make-lazy-input-stream (input-stream)
   (if (subtypep (stream-element-type input-stream) 'character)
@@ -55,46 +131,3 @@
       (cons-stream (read-byte input-stream)
                    (make-lazy-byte-input-stream input-stream))
     (end-of-file () '())))
-
-;; Probably don't need STREAM-CAR and -CDR, as CDR will return the lazy value,
-;; then it'll be expanded as soon as a method is called on it.
-(defun stream-car (stream)
-  (car stream))
-
-(defun stream-cdr (stream)
-  (force (cdr stream)))
-
-(defun force-stream (stream)
-  (if (endp stream)
-      '()
-      (cons (stream-car stream) (force-stream (stream-cdr stream)))))
-
-(defun map-stream (fn &rest streams)
-  (if (some #'endp streams)
-      '()
-      (cons-stream (apply fn (mapcar #'stream-car streams))
-                   (apply #'map-stream fn (mapcar #'stream-cdr streams)))))
-
-(defun append-streams (stream1 stream2)
-  (if (endp stream1)
-      stream2
-      (cons-stream (stream-car stream1)
-                   (append-streams (stream-cdr stream1) stream2))))
-
-(defmacro lazy-let ((&rest variables) &body body)
-  `(let ,(mapcar #'car variables)
-     (setf ,@(reduce #'append variables))
-     ,@body))
-
-(defmethod no-applicable-method :around (gf &rest args)
-  (let* ((found-lazy-p nil)
-         (forced-args (mapcar (lambda (arg)
-                                (if (typep arg 'lazy-form)
-                                    (progn
-                                      (setf found-lazy-p t)
-                                      (force arg))
-                                    arg))
-                              args)))
-    (if found-lazy-p
-        (apply gf forced-args)
-        (call-next-method))))
