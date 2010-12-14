@@ -9,7 +9,7 @@
 (in-suite scala-tests)
 
 (test should-parse-right-recursion
-  (lazy-let ((x (eq-t #\x))
+  (lazy-let ((x #\x)
              (xl (choice (==> (~ x xl) #'identity)
                          (==> x        (lambda (x) (list x)))))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
@@ -17,7 +17,7 @@
                (car (stream-nth 0 (parse xl in)))))))
 
 (test should-parse-right-recursion-with-epsilon
-  (lazy-let ((ex (eq-t #\x))
+  (lazy-let ((ex #\x)
              (exl (choice (==> (~ ex exl) #'identity)
                           *epsilon*))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
@@ -29,7 +29,7 @@
                (car (stream-nth 2 (parse exl in)))))))
 
 (test should-parse-left-recursion
-  (lazy-let ((lx (eq-t #\x))
+  (lazy-let ((lx #\x)
              (lxl (choice (==> (~ lxl lx) #'identity)
                           (==> lx          (lambda (x) (list x)))))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
@@ -37,7 +37,7 @@
                (car (stream-nth 0 (parse lxl in)))))))
 
 (test should-parse-left-recursion-with-epsilon
-  (lazy-let ((lex (eq-t #\x))
+  (lazy-let ((lex #\x)
              (lexl (choice (==> (~ lexl lex) #'identity)
                            *epsilon*))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
@@ -45,11 +45,11 @@
                (car (stream-nth 0 (parse lexl in)))))))
 
 (test should-parse-parenthesized-expression
-  (lazy-let ((lex (eq-t #\x))
+  (lazy-let ((lex #\x)
              (lexl (choice (==> (~ lexl lex) #'identity)
                            *epsilon*))
-             (lpar (eq-t #\())
-             (rpar (eq-t #\)))
+             (lpar #\()
+             (rpar #\))
              (par-lexl (==> (~ lpar lexl rpar) (lambda (cat) (cadr cat))))
              (in2 (make-lazy-input-stream (make-string-input-stream "(xxxx)"))))
     (is (equal '((((NIL . #\x) . #\x) . #\x) . #\x)
@@ -64,8 +64,8 @@
 
 #|
 (test should-parse-expression
-  (lazy-let ((s (eq-t #\s))
-             (x (eq-t #\x))
+  (lazy-let ((s #\s)
+             (x #\x)
              (one (make-instance 'exp))
              (exp (choice (==> x
                                (lambda (x) (declare (ignore x)) one))
@@ -106,9 +106,9 @@
 
 #|
 (test should-parse-s-expression
-  (lazy-let ((s (eq-t #\s))
-             (lpar (eq-t #\())
-             (rpar (eq-t #\)))
+  (lazy-let ((s #\s)
+             (lpar #\()
+             (rpar #\))
              (sx (choice (==> (~ lpar sxl rpar)
                               (lambda (cat) (car (cdr cat))))
                          (==> s
@@ -132,9 +132,9 @@
 
 #|
 (test should-benchmark
-  (lazy-let ((s (eq-t #\s))
-             (lpar (eq-t #\())
-             (rpar (eq-t #\)))
+  (lazy-let ((s #\s)
+             (lpar #\()
+             (rpar #\))
              (sx (choice (==> (~ lpar sxl rpar)
                               (lambda (cat) (car (cdr cat))))
                          (==> s
