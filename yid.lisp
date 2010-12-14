@@ -33,7 +33,7 @@
     (prin1 (slot-value c 'value) stream)))
 
 (defun eq-t (value)
-  (delay (make-instance 'eq-t :value value)))
+  (make-instance 'eq-t :value value))
 
 (defvar *empty* (make-instance 'parser :emptyp t :nullablep nil))
 
@@ -43,7 +43,7 @@
    (is-nullable :initform t)))
 
 (defun eps (generator)
-  (delay (make-instance 'eps :generator generator)))
+  (make-instance 'eps :generator generator))
 
 (defvar *epsilon* (eps (cons-stream '() '())))
 
@@ -52,14 +52,14 @@
    (second :initarg :second :reader second*)))
 
 (defmacro con (first second)
-  `(delay (make-instance 'con :first ,first :second ,second)))
+  `(make-instance 'con :first (delay ,first) :second (delay ,second)))
 
 (defclass alt (parser)
   ((choice1 :initarg :choice1 :reader choice1)
    (choice2 :initarg :choice2 :reader choice2)))
 
 (defmacro alt (choice1 choice2)
-  `(delay (make-instance 'alt :choice1 ,choice1 :choice2 ,choice2)))
+  `(make-instance 'alt :choice1 (delay ,choice1) :choice2 (delay ,choice2)))
 
 (defclass rep (parser)
   ((parser :initarg :parser)
@@ -68,14 +68,14 @@
    (is-nullable :initform t)))
 
 (defmacro rep (parser)
-  `(delay (make-instance 'rep :parser ,parser)))
+  `(make-instance 'rep :parser (delay ,parser)))
 
 (defclass red (parser)
   ((parser :initarg :parser)
    (f :initarg :f)))
 
 (defmacro red (parser f)
-  `(delay (make-instance 'red :parser ,parser :f ,f)))
+  `(make-instance 'red :parser (delay ,parser) :f ,f))
 
 (defmethod parse-null ((parser parser))
   (if (is-empty parser)
@@ -256,14 +256,16 @@
                    (is-nullable (slot-value parser 'parser))))))
 
 (defmacro choice (&rest parsers)
-  (if (= (length parsers) 1)
-      `,(car parsers)
-      `(alt ,(car parsers) (choice ,@(cdr parsers)))))
+  (case (length parsers)
+    (0 `*empty*)
+    (1 `,(car parsers))
+    (otherwise `(alt ,(car parsers) (choice ,@(cdr parsers))))))
 
 (defmacro ~ (&rest parsers)
-  (if (= (length parsers) 1)
-      `,(car parsers)
-      `(con ,(car parsers) (~ ,@(cdr parsers)))))
+  (case (length parsers)
+    (0 `*epsilon*)
+    (1 `,(car parsers))
+    (otherwise `(con ,(car parsers) (~ ,@(cdr parsers))))))
 
 (defmacro *+ (parser)
   `(rep ,parser))
