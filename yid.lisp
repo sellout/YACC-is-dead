@@ -1,6 +1,6 @@
 (defpackage yid
   (:use #:cl #:lazy)
-  (:export #:parser #:eq-t #:eps #:con #:alt #:rep #:red
+  (:export #:parser #:token #:eps #:con #:alt #:rep #:red
            #:*empty* #:*epsilon*
            #:parse-full #:parse
            #:choice #:~ #:*+ #:==>))
@@ -22,18 +22,14 @@
    (initializedp :initform nil :accessor initializedp)
    (cache :initform (make-hash-table :test #'equal) :reader cache)))
 
-(defclass eq-t (parser)
-  ((value :initarg :value)
+(defclass token (parser)
+  ((predicate :initarg :predicate)
    (parse-null :initform '())
    (is-empty :initform nil)
    (is-nullable :initform nil)))
 
-(defmethod print-object ((c eq-t) stream)
-  (print-unreadable-object (c stream :type t :identity t)
-    (prin1 (slot-value c 'value) stream)))
-
-(defun eq-t (value)
-  (make-instance 'eq-t :value value))
+(defun token (predicate)
+  (make-instance 'token :predicate predicate))
 
 (defvar *empty* (make-instance 'parser :emptyp t :nullablep nil))
 
@@ -148,8 +144,8 @@
     (if (equal parser token)
         (eps (cons-stream token '()))
         *empty*))
-  (:method ((parser eq-t) value)
-    (if (equal (slot-value parser 'value) value)
+  (:method ((parser token) value)
+    (if (funcall (slot-value parser 'predicate) value)
         (eps (cons-stream value '()))
         *empty*))
   (:method ((parser (eql *empty*)) value)
@@ -206,8 +202,8 @@
         (cons-stream (list (stream-car input-stream) (stream-cdr input-stream))
                      '())
         '()))
-  (:method ((parser eq-t) input-stream)
-    (if (equal (stream-car input-stream) (slot-value parser 'value))
+  (:method ((parser token) input-stream)
+    (if (funcall (slot-value parser 'predicate) (stream-car input-stream))
         (cons-stream (list (stream-car input-stream) (stream-cdr input-stream))
                      '())
         '()))
