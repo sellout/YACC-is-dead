@@ -200,7 +200,7 @@
     (values))
   (:method ((parser eps) change)
     (or-with change
-             (setf (parse-null parser) (force-stream (generator parser)))))
+             (setf (parse-null parser) (for-each-stream (generator parser)))))
   (:method ((parser con) change)
     (when (not (find parser (seen change)))
       (push parser (seen change))

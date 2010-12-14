@@ -1,10 +1,12 @@
 (defpackage lazy
   (:use #:cl)
-  (:export #:delay #:force #:force-stream #:lazy-let
+  (:export #:delay #:force #:for-each-stream #:lazy-let
            #:cons-stream #:stream-car #:stream-cdr #:stream-caar
            #:stream* #:stream-nth #:append-streams #:stream-nthcdr
            #:stream-rest #:stream-member #:map-stream
-           #:make-lazy-input-stream))
+           #:stream-remove-if
+           #:make-lazy-input-stream
+           #:repeatedly #:drop #:take #:make-stream-range))
 
 (in-package #:lazy)
 
@@ -36,10 +38,11 @@
         (forced-value form)
         (setf (forced-value form) (funcall (form form))))))
 
-(defun force-stream (stream)
+(defun for-each-stream (stream &key (key #'identity))
   (if (endp stream)
       '()
-      (cons (stream-car stream) (force-stream (stream-cdr stream)))))
+      (cons (funcall key (stream-car stream))
+            (for-each-stream (stream-cdr stream) :key key))))
 
 ;;; Data & Control Flow
 
@@ -113,6 +116,16 @@
       (cons-stream (apply fn (mapcar #'stream-car streams))
                    (apply #'map-stream fn (mapcar #'stream-cdr streams)))))
 
+;;; Sequences
+
+(defun stream-remove-if (predicate stream &key (key #'identity))
+  (cond ((endp stream) '())
+        ((funcall predicate (funcall key (stream-car stream)))
+         (stream-remove-if predicate (stream-cdr stream)))
+        (t (cons-stream (stream-car stream)
+                        (stream-remove-if predicate (stream-cdr stream)
+                                          :key key)))))
+
 ;;; IO Streams
 
 (defun make-lazy-input-stream (input-stream)
@@ -131,3 +144,26 @@
       (cons-stream (read-byte input-stream)
                    (make-lazy-byte-input-stream input-stream))
     (end-of-file () '())))
+
+;;; Other
+
+(defun repeatedly (function &rest arguments)
+  (cons-stream (apply function arguments)
+               (apply function arguments)))
+
+(defun drop (n stream)
+  (loop for i from 0 to n
+       for cdr = stream then (stream-cdr cdr)
+       finally (return cdr)))
+
+(defun take (n stream)
+  (loop for i from 0 to n
+       for cdr = stream then (stream-cdr cdr)
+       collecting (stream-car cdr)))
+
+(defun make-stream-range (start &optional end (step 1))
+  (if (if (plusp step)
+          (< start end)
+          (< end start))
+      (cons-stream start
+                   (make-stream-range (+ start step) end step))))
