@@ -7,7 +7,7 @@
   :components ((:file "lazy")))
 
 (defsystem yid
-  :depends-on (lazy)
+  :depends-on (lazy alexandria)
   :components ((:file "yid"))
   :in-order-to ((test-op (load-op yid-tests)))
   :perform (test-op :after (op c)
@@ -20,4 +20,5 @@
 (defsystem yid-tests
   :depends-on (yid lazy fiveam)
   :components ((:file "tests-package")
-               (:file "yid-tests" :depends-on ("tests-package"))))
+               (:file "scala-tests" :depends-on ("tests-package"))
+               (:file "racket-tests" :depends-on ("tests-package"))))
