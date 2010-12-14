@@ -19,7 +19,7 @@
 (test should-parse-right-recursion-with-epsilon
   (lazy-let ((ex (eq-t #\x))
              (exl (choice (==> (~ ex exl) #'identity)
-                          epsilon))
+                          *epsilon*))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
     (is (equal '(#\x #\x #\x #\x #\x)
                (car (stream-nth 0 (parse exl in)))))
@@ -39,7 +39,7 @@
 (test should-parse-left-recursion-with-epsilon
   (lazy-let ((lex (eq-t #\x))
              (lexl (choice (==> (~ lexl lex) #'identity)
-                           epsilon))
+                           *epsilon*))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
     (is (equal '(((((NIL . #\x) . #\x) . #\x) . #\x) . #\x)
                (car (stream-nth 0 (parse lexl in)))))))
@@ -47,7 +47,7 @@
 (test should-parse-parenthesized-expression
   (lazy-let ((lex (eq-t #\x))
              (lexl (choice (==> (~ lexl lex) #'identity)
-                           epsilon))
+                           *epsilon*))
              (lpar (eq-t #\())
              (rpar (eq-t #\)))
              (par-lexl (==> (~ lpar lexl rpar) (lambda (cat) (cadr cat))))
@@ -80,7 +80,7 @@
                                (lambda (cat)
                                  (make-instance 'sum :e1 one :e2 (cddr cat))))
                           (==> exp #'identity)
-                          (==> epsilon
+                          (==> *epsilon*
                                (lambda (ep) (declare (ignore ep)) one))))
              (xin (make-lazy-input-stream
                    (make-string-input-stream "xsxsxsxsx"))))

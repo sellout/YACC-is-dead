@@ -1,8 +1,7 @@
 (defpackage yid
   (:use #:cl #:lazy)
-  (:export #:parser
-           #:eq-t #:emp #:eps #:con #:alt #:rep #:red
-           #:epsilon
+  (:export #:parser #:eq-t #:eps #:con #:alt #:rep #:red
+           #:*empty* #:*epsilon*
            #:parse-full #:parse
            #:choice #:~ #:*+ #:==>))
 
@@ -18,8 +17,8 @@
 
 (defclass parser ()
   ((parse-null :initform '())
-   (is-empty :initform nil)
-   (is-nullable :initform nil)
+   (is-empty :initform nil :initarg :emptyp)
+   (is-nullable :initform nil :initarg :nullablep)
    (initializedp :initform nil :accessor initializedp)
    (cache :initform (make-hash-table :test #'equal) :reader cache)))
 
@@ -36,13 +35,7 @@
 (defun eq-t (value)
   (delay (make-instance 'eq-t :value value)))
 
-(defclass emp (parser)
-  ((parse-null :initform '())
-   (is-empty :initform t)
-   (is-nullable :initform nil)))
-
-(defun emp ()
-  (delay (make-instance 'emp)))
+(defvar *empty* (make-instance 'parser :emptyp t :nullablep nil))
 
 (defclass eps (parser)
   ((generator :initarg :generator :reader generator)
@@ -52,7 +45,7 @@
 (defun eps (generator)
   (delay (make-instance 'eps :generator generator)))
 
-(defparameter epsilon (eps (cons-stream '() '())))
+(defvar *epsilon* (eps (cons-stream '() '())))
 
 (defclass con (parser)
   ((first :initarg :first :reader first*)
@@ -127,19 +120,19 @@
 
 (defgeneric derive (parser value)
   (:method :around ((parser parser) value)
-    (cond ((is-empty parser) (emp))
+    (cond ((is-empty parser) *empty*)
           ((gethash value (cache parser)) (gethash value (cache parser)))
           (t (setf (gethash value (cache parser)) (call-next-method)))))
   (:method ((parser eq-t) value)
     (if (equal (slot-value parser 'value) value)
         (eps (cons-stream value '()))
-        (emp)))
-  (:method ((parser emp) value)
+        *empty*))
+  (:method ((parser (eql *empty*)) value)
     (declare (ignore value))
-    parser)
+    (error "Cannot derive the empty parser"))
   (:method ((parser eps) value)
     (declare (ignore value))
-    (emp))
+    *empty*)
   (:method ((parser con) value)
     (if (is-nullable (first* parser))
         (alt (con (derive (first* parser) value)
@@ -183,7 +176,7 @@
         (cons-stream (list (stream-car input-stream) (stream-cdr input-stream))
                      '())
         '()))
-  (:method ((parser emp) input-stream)
+  (:method ((parser (eql *empty*)) input-stream)
     (declare (ignore input-stream))
     '())
   (:method ((parser eps) input-stream)
