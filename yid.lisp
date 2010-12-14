@@ -183,8 +183,8 @@
         (parse (funcall compact (derive parser (stream-car stream)))
                (stream-cdr stream))))
   (:method ((parser red) stream &key (compact #'identity))
-    (map-stream (lambda (a) (funcall (slot-value parser 'f) a))
-                (parse (slot-value parser 'parser) stream))))
+    (map-stream (slot-value parser 'f)
+                (parse (slot-value parser 'parser) stream :compact compact))))
 
 (defgeneric parse-partial (parser stream)
   (:method ((parser parser) stream)
