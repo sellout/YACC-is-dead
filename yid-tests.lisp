@@ -1,10 +1,8 @@
-(defpackage yid-tests
-  (:use #:cl #:yid #:lazy #:fiveam))
-
 (in-package #:yid-tests)
 
 (def-suite scala-tests
-    :description "Tests from the Scala implementation of YID.")
+    :description "Tests from the Scala implementation of YID."
+    :in yid-tests)
 
 (in-suite scala-tests)
 
@@ -14,7 +12,7 @@
                          (==> x        (lambda (x) (list x)))))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
     (is (equal '(#\x #\x #\x #\x #\x)
-               (car (stream-nth 0 (parse xl in)))))))
+               (car (stream-nth 0 (parse-partial xl in)))))))
 
 (test should-parse-right-recursion-with-epsilon
   (lazy-let ((ex #\x)
@@ -22,11 +20,11 @@
                           *epsilon*))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
     (is (equal '(#\x #\x #\x #\x #\x)
-               (car (stream-nth 0 (parse exl in)))))
+               (car (stream-nth 0 (parse-partial exl in)))))
     (is (equal '()
-               (car (stream-nth 1 (parse exl in)))))
+               (car (stream-nth 1 (parse-partial exl in)))))
     (is (equal '(#\x)
-               (car (stream-nth 2 (parse exl in)))))))
+               (car (stream-nth 2 (parse-partial exl in)))))))
 
 (test should-parse-left-recursion
   (lazy-let ((lx #\x)
@@ -34,7 +32,7 @@
                           (==> lx          (lambda (x) (list x)))))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
     (is (equal '(((((#\x) . #\x) . #\x) . #\x) . #\x)
-               (car (stream-nth 0 (parse lxl in)))))))
+               (car (stream-nth 0 (parse-partial lxl in)))))))
 
 (test should-parse-left-recursion-with-epsilon
   (lazy-let ((lex #\x)
@@ -42,7 +40,7 @@
                            *epsilon*))
              (in (make-lazy-input-stream (make-string-input-stream "xxxxx"))))
     (is (equal '(((((NIL . #\x) . #\x) . #\x) . #\x) . #\x)
-               (car (stream-nth 0 (parse lexl in)))))))
+               (car (stream-nth 0 (parse-partial lexl in)))))))
 
 (test should-parse-parenthesized-expression
   (lazy-let ((lex #\x)
@@ -53,7 +51,7 @@
              (par-lexl (==> (~ lpar lexl rpar) (lambda (cat) (cadr cat))))
              (in2 (make-lazy-input-stream (make-string-input-stream "(xxxx)"))))
     (is (equal '((((NIL . #\x) . #\x) . #\x) . #\x)
-               (stream-nth 0 (parse-full par-lexl in2))))))
+               (stream-nth 0 (parse par-lexl in2))))))
 
 (defclass exp ()
   ())
@@ -85,7 +83,7 @@
              (xin (make-lazy-input-stream
                    (make-string-input-stream "xsxsxsxsx"))))
     (is (equal '()
-               (car (parse-full exp xin))))))
+               (car (parse exp xin))))))
 |#
 
 (defclass s-exp ()
@@ -120,7 +118,7 @@
              (sin (make-lazy-input-stream
                    (make-string-input-stream "(sss(sss(s)(s)sss)ss(s))"))))
     (is (equal '()
-               (car (parse-full sx sin))))))
+               (car (parse sx sin))))))
 |#
 
 (eval-when (:compile-toplevel :load-toplevel :execute)  
@@ -160,7 +158,7 @@
              (count 0)
              (time (benchmark (loop until (endp input)
                                  do (destructuring-bind (tree rest)
-                                        (parse sx input)
+                                        (parse-partial sx input)
                                       (print (stream-car tree))
                                       (setf count (1+ count)
                                             input (force rest)))))))

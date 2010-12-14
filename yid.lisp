@@ -2,7 +2,7 @@
   (:use #:cl #:lazy)
   (:export #:parser #:token #:eps #:con #:alt #:rep #:red
            #:*empty* #:*epsilon*
-           #:parse-full #:parse
+           #:parse #:parse-partial
            #:choice #:~ #:*+ #:==>
            #:recognizesp))
 
@@ -159,7 +159,7 @@
     (if (nullablep (left parser))
         (alt (con (derive (left parser) value)
                   (right parser))
-             (con (eps (map-stream #'first (parse (left parser) '())))
+             (con (eps (map-stream #'first (parse-partial (left parser) '())))
                   (derive (right parser) value)))
         (con (derive (left parser) value) (right parser))))
   (:method ((parser alt) value)
@@ -174,30 +174,30 @@
     (red (derive (slot-value parser 'parser) value)
          (slot-value parser 'f))))
 
-(defgeneric parse-full (parser stream)
+(defgeneric parse (parser stream)
   (:method ((parser lazy::lazy-form) stream)
-    (parse-full (force parser) stream))
+    (parse (force parser) stream))
   (:method (parser stream)
     (if (endp stream)
         (parse-null parser)
-        (parse-full (derive parser (stream-car stream))
+        (parse (derive parser (stream-car stream))
                     (stream-cdr stream))))
   (:method ((parser red) stream)
     (map-stream (lambda (a) (funcall (slot-value parser 'f) a))
-                (parse-full (slot-value parser 'parser) stream))))
+                (parse (slot-value parser 'parser) stream))))
 
-(defgeneric parse (parser stream)
+(defgeneric parse-partial (parser stream)
   (:method ((parser parser) stream)
     (if (endp stream)
         (mapcar (lambda (a) (list a '()))
                 (parse-null parser))
-        (combine-even (parse (derive parser (stream-car stream))
+        (combine-even (parse-partial (derive parser (stream-car stream))
                              (stream-cdr stream))
                       (map-stream (lambda (a) (list a stream))
-                                  (parse-full parser '())))))
+                                  (parse parser '())))))
   (:method ((parser lazy::lazy-form) stream)
     "Need this so the next method doesn't match on lazies."
-    (parse (force parser) stream))
+    (parse-partial (force parser) stream))
   (:method (parser stream)
     (if (equal parser (stream-car stream))
         (cons-stream (list (stream-car stream) (stream-cdr stream))
@@ -217,7 +217,7 @@
     (map-stream (lambda (result)
                   (destructuring-bind (a &rest rest) result
                     (cons (funcall (slot-value parser 'f) a) rest)))
-                (parse (slot-value parser 'parser) stream))))
+                (parse-partial (slot-value parser 'parser) stream))))
 
 (defgeneric update-child-based-attributes (parser change)
   (:method ((parser lazy::lazy-form) change)
