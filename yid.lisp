@@ -3,7 +3,8 @@
   (:export #:parser #:token #:eps #:con #:alt #:rep #:red
            #:*empty* #:*epsilon*
            #:parse-full #:parse
-           #:choice #:~ #:*+ #:==>))
+           #:choice #:~ #:*+ #:==>
+           #:recognizesp))
 
 (in-package #:yid)
 
@@ -315,3 +316,11 @@
   (cond (s2 (cons-stream (stream-car s2) (combine-even s1 (stream-cdr s2))))
         (s1 (cons-stream (stream-car s1) (combine-even (stream-cdr s1) s2)))
         (t '())))
+
+(defgeneric recognizesp (parser stream)
+  (:method (parser stream)
+    (if (endp stream)
+        (is-nullable parser)
+        (recognizesp (derive parser (stream-car stream)) (stream-cdr stream))))
+  (:method ((parser lazy::lazy-form) stream)
+    (recognizesp (force parser) stream)))
