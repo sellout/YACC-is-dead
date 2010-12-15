@@ -20,5 +20,6 @@
 (defsystem yid-tests
   :depends-on (yid lazy fiveam)
   :components ((:file "tests-package")
+               (:file "api-tests" :depends-on ("tests-package"))
                (:file "scala-tests" :depends-on ("tests-package"))
                (:file "racket-tests" :depends-on ("tests-package"))))
