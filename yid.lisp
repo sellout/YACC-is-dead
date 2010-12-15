@@ -210,10 +210,7 @@
     (if (endp stream)
         (parse-null parser)
         (parse (funcall compact (parse-derive (stream-car stream) parser))
-               (stream-cdr stream))))
-  (:method ((parser red) stream &key (compact #'identity))
-    (map-stream (slot-value parser 'f)
-                (parse (slot-value parser 'parser) stream :compact compact))))
+               (stream-cdr stream)))))
 
 (defgeneric parse-partial (parser stream)
   (:method ((parser parser) stream)
