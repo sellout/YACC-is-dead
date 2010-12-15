@@ -32,18 +32,20 @@
                                  (lambda (parse) (cons 'a (cdr parse))))
                             (eps (list nil)))))
     (is (eq t (recognizesp rlist '(r r))))
-    (is (equal (yid::parse-derive rlist 'r) (yid::parse-derive rlist 'r)))
-    (is (equal (yid::parse-derive (yid::parse-derive rlist 'r) 'r)
-               (yid::parse-derive (yid::parse-derive rlist 'r) 'r)))
+    (is (equal (yid::parse-derive 'r rlist) (yid::parse-derive 'r rlist)))
+    (is (equal (yid::parse-derive 'r (yid::parse-derive 'r rlist))
+               (yid::parse-derive 'r (yid::parse-derive 'r rlist))))
     (is (equal (list '(a a))
-               (yid::parse-null (yid::parse-derive (yid::parse-derive rlist 'r)
-                                                   'r))))
+               (yid::parse-null (yid::parse-derive 'r
+                                                   (yid::parse-derive 'r
+                                                                      rlist)))))
     (is (equal (list '(a a a))
                (yid::parse-null (yid::parse-derive
-                                 (yid::parse-derive (yid::parse-derive rlist
-                                                                       'r)
-                                                    'r)
-                                 'r))))
+                                 'r
+                                 (yid::parse-derive
+                                  'r
+                                  (yid::parse-derive 'r
+                                                     rlist))))))
     (is (equal (list '(a a a a a a a)) (parse rlist '(r r r r r r r))))))
 
 (test nlist
