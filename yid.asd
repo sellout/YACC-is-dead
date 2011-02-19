@@ -10,6 +10,7 @@
   :depends-on (lazy alexandria)
   :serial t
   :components ((:file "package")
+               (:file "caching-generics")
                (:file "yid"))
   :in-order-to ((test-op (load-op yid-tests)))
   :perform (test-op :after (op c)
