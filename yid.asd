@@ -8,7 +8,9 @@
 
 (defsystem yid
   :depends-on (lazy alexandria)
-  :components ((:file "yid"))
+  :serial t
+  :components ((:file "package")
+               (:file "yid"))
   :in-order-to ((test-op (load-op yid-tests)))
   :perform (test-op :after (op c)
                     (funcall (intern "RUN!" :yid-tests)
