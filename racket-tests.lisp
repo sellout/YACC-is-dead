@@ -60,14 +60,12 @@
                             (eps (list nil)))))
     (is (equal (list '(a b c d e)) (parse llist '(a b c d e))))))
 
-#|
 (test recognition
   (lazy-let ((s (choice (~ s '+ s) 'n))
              (good-input '(N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N))
              (bad-input '(N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + N + + N)))
-    (time (recognizesp s good-input))
-    (time (recognizesp s bad-input))))
-|#
+    (is-true (time (recognizesp s good-input)))
+    (is-false (time (recognizesp s bad-input)))))
 
 (defun make-sx-bench (n)
   (loop for i from 0 to n collecting 'atom))
