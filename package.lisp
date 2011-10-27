@@ -4,6 +4,10 @@
            #:*empty* #:*epsilon*
            #:parse #:parse-partial
            #:choice #:~ #:*+ #:==>
-           #:recognizesp #:compact))
- 
+           #:recognizesp #:compact)
+  (:export #:make-new-parser ;; DEFSYNTAX-related stuff
+           #:*parser*
+           #:parse-rule
+           #:defsyntax))
+
 (in-package #:yid)
