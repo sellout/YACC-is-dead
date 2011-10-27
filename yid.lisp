@@ -5,8 +5,9 @@
    (seen :initform () :accessor seen)))
 
 (defmethod or-with ((object change-cell) changed)
-  (or (slot-value object 'changedp)
-      (setf (slot-value object 'changedp) changed)))
+  ;; TODO: The previous version of this was obviously broken, but need to look
+  ;;       into whether this version is actually correct.
+  (setf (slot-value object 'changedp) changed))
 
 (defclass parser ()
   ((parse-null :initform '())
