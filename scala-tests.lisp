@@ -53,10 +53,10 @@
     (is (equal '((((NIL . #\x) . #\x) . #\x) . #\x)
                (stream-nth 0 (parse par-lexl in2))))))
 
-(defclass exp ()
+(defclass expr ()
   ())
 
-(defclass sum (exp)
+(defclass sum (expr)
   ((e1 :initarg :e1)
    (e2 :initarg :e2)))
 
@@ -64,26 +64,26 @@
 (test should-parse-expression
   (lazy-let ((s #\s)
              (x #\x)
-             (one (make-instance 'exp))
-             (exp (choice (==> x
+             (one (make-instance 'expr))
+             (expr (choice (==> x
                                (lambda (x) (declare (ignore x)) one))
-                          (==> (~ exp s exp)
+                          (==> (~ expr s expr)
                                (lambda (cat)
                                  (make-instance 'sum
                                                 :e1 (car cat) :e2 (cddr cat))))
-                          (==> (~ exp s x)
+                          (==> (~ expr s x)
                                (lambda (cat)
                                  (make-instance 'sum :e1 (car cat) :e2 one)))
-                          (==> (~ x s exp)
+                          (==> (~ x s expr)
                                (lambda (cat)
                                  (make-instance 'sum :e1 one :e2 (cddr cat))))
-                          (==> exp #'identity)
+                          (==> expr #'identity)
                           (==> *epsilon*
                                (lambda (ep) (declare (ignore ep)) one))))
              (xin (make-lazy-input-stream
                    (make-string-input-stream "xsxsxsxsx"))))
     (is (equal '()
-               (car (parse exp xin))))))
+               (car (parse expr xin))))))
 |#
 
 (defclass s-exp ()
