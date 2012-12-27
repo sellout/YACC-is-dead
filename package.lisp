@@ -1,4 +1,4 @@
-(defpackage yid
+(defpackage yacc-is-dead
   (:use #:cl #:lazy)
   (:export #:parser #:token #:eps #:con #:alt #:rep #:red
            #:*empty* #:*epsilon*
@@ -6,4 +6,4 @@
            #:choice #:~ #:*+ #:==>
            #:recognizesp #:compact))
  
-(in-package #:yid)
+(in-package #:yacc-is-dead)

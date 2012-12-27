@@ -1,6 +1,6 @@
-(defpackage yid-tests
-  (:use #:cl #:yid #:lazy #:fiveam))
+(defpackage yacc-is-dead-tests
+  (:use #:cl #:yacc-is-dead #:lazy #:fiveam))
 
-(in-package #:yid-tests)
+(in-package #:yacc-is-dead-tests)
 
-(def-suite yid-tests)
+(def-suite yacc-is-dead-tests)

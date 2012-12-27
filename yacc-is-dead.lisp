@@ -1,4 +1,4 @@
-(in-package #:yid)
+(in-package #:yacc-is-dead)
 
 (defclass change-cell ()
   ((changedp :initform nil :accessor changedp)
