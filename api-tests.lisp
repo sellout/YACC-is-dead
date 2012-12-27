@@ -1,8 +1,8 @@
-(in-package #:yid-tests)
+(in-package #:yacc-is-dead-tests)
 
 (def-suite api-tests
     :description "Test the external API, like unit tests are supposed to."
-    :in yid-tests)
+    :in yacc-is-dead-tests)
 
 (in-suite api-tests)
 

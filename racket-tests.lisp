@@ -1,29 +1,29 @@
-(in-package #:yid-tests)
+(in-package #:yacc-is-dead-tests)
 
 (def-suite racket-tests
-    :description "Tests from the Racket implementation of YID."
-    :in yid-tests)
+    :description "Tests from the Racket implementation of YACC-IS-DEAD."
+    :in yacc-is-dead-tests)
 
 (in-suite racket-tests)
 
 (test simple
   (let ((simple (~ 'a 'b)))
-    (is (eq nil (yid::nullablep simple)))))
+    (is (eq nil (yacc-is-dead::nullablep simple)))))
 
 (test xylist
   (lazy-let ((xylist (choice (~ 'x yxlist)
                              (choice 'x *epsilon*)))
              (yxlist (choice (~ 'y xylist)
                              'y)))
-    (is (eq t (yid::nullablep xylist)))
-    (is (eq nil (yid::nullablep yxlist)))
+    (is (eq t (yacc-is-dead::nullablep xylist)))
+    (is (eq nil (yacc-is-dead::nullablep yxlist)))
     (is (eq t (recognizesp xylist '(x y x y))))))
 
 (test alist
   (lazy-let ((alist (choice (~ alist 'a) 'a))
              (alist?? (choice (~ alist 'a) *epsilon*)))
-    (is (eq nil (yid::nullablep alist)))
-    (is (eq t (yid::nullablep alist??)))
+    (is (eq nil (yacc-is-dead::nullablep alist)))
+    (is (eq t (yacc-is-dead::nullablep alist??)))
     (is (eq nil (recognizesp alist '(a a a b))))
     (is (eq t (recognizesp alist '(a a a a))))))
 
@@ -32,19 +32,19 @@
                                  (lambda (parse) (cons 'a (cdr parse))))
                             (eps (list nil)))))
     (is (eq t (recognizesp rlist '(r r))))
-    (is (equal (yid::parse-derive 'r rlist) (yid::parse-derive 'r rlist)))
-    (is (equal (yid::parse-derive 'r (yid::parse-derive 'r rlist))
-               (yid::parse-derive 'r (yid::parse-derive 'r rlist))))
+    (is (equal (yacc-is-dead::parse-derive 'r rlist) (yacc-is-dead::parse-derive 'r rlist)))
+    (is (equal (yacc-is-dead::parse-derive 'r (yacc-is-dead::parse-derive 'r rlist))
+               (yacc-is-dead::parse-derive 'r (yacc-is-dead::parse-derive 'r rlist))))
     (is (equal (list '(a a))
-               (yid::parse-null (yid::parse-derive 'r
-                                                   (yid::parse-derive 'r
+               (yacc-is-dead::parse-null (yacc-is-dead::parse-derive 'r
+                                                   (yacc-is-dead::parse-derive 'r
                                                                       rlist)))))
     (is (equal (list '(a a a))
-               (yid::parse-null (yid::parse-derive
+               (yacc-is-dead::parse-null (yacc-is-dead::parse-derive
                                  'r
-                                 (yid::parse-derive
+                                 (yacc-is-dead::parse-derive
                                   'r
-                                  (yid::parse-derive 'r
+                                  (yacc-is-dead::parse-derive 'r
                                                      rlist))))))
     (is (equal (list '(a a a a a a a)) (parse rlist '(r r r r r r r))))))
 

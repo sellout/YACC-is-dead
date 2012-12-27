@@ -1,8 +1,8 @@
-(in-package #:yid-tests)
+(in-package #:yacc-is-dead-tests)
 
 (def-suite scala-tests
-    :description "Tests from the Scala implementation of YID."
-    :in yid-tests)
+    :description "Tests from the Scala implementation of YACC-IS-DEAD."
+    :in yacc-is-dead-tests)
 
 (in-suite scala-tests)
 
