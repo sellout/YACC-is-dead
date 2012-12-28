@@ -1,12 +1,12 @@
-(in-package #:yid-tests)
+(in-package #:yacc-is-dead-tests)
 
 (def-suite scala-tests
-    :description "Tests from the Scala implementation of YID."
-    :in yid-tests)
+    :description "Tests from the Scala implementation of YACC-IS-DEAD."
+    :in yacc-is-dead-tests)
 
 (in-suite scala-tests)
 
-(test should-parse-right-recursion
+(def-test should-parse-right-recursion ()
   (lazy-let ((x #\x)
              (xl (choice (==> (~ x xl) #'identity)
                          (==> x        (lambda (x) (list x)))))
@@ -14,7 +14,7 @@
     (is (equal '(#\x #\x #\x #\x #\x)
                (car (stream-nth 0 (parse-partial xl in)))))))
 
-(test should-parse-right-recursion-with-epsilon
+(def-test should-parse-right-recursion-with-epsilon ()
   (lazy-let ((ex #\x)
              (exl (choice (==> (~ ex exl) #'identity)
                           *epsilon*))
@@ -26,7 +26,7 @@
     (is (equal '(#\x)
                (car (stream-nth 2 (parse-partial exl in)))))))
 
-(test should-parse-left-recursion
+(def-test should-parse-left-recursion ()
   (lazy-let ((lx #\x)
              (lxl (choice (==> (~ lxl lx) #'identity)
                           (==> lx          (lambda (x) (list x)))))
@@ -34,7 +34,7 @@
     (is (equal '(((((#\x) . #\x) . #\x) . #\x) . #\x)
                (car (stream-nth 0 (parse-partial lxl in)))))))
 
-(test should-parse-left-recursion-with-epsilon
+(def-test should-parse-left-recursion-with-epsilon ()
   (lazy-let ((lex #\x)
              (lexl (choice (==> (~ lexl lex) #'identity)
                            *epsilon*))
@@ -42,7 +42,7 @@
     (is (equal '(((((NIL . #\x) . #\x) . #\x) . #\x) . #\x)
                (car (stream-nth 0 (parse-partial lexl in)))))))
 
-(test should-parse-parenthesized-expression
+(def-test should-parse-parenthesized-expression ()
   (lazy-let ((lex #\x)
              (lexl (choice (==> (~ lexl lex) #'identity)
                            *epsilon*))
@@ -53,37 +53,37 @@
     (is (equal '((((NIL . #\x) . #\x) . #\x) . #\x)
                (stream-nth 0 (parse par-lexl in2))))))
 
-(defclass exp ()
+(defclass expr ()
   ())
 
-(defclass sum (exp)
+(defclass sum (expr)
   ((e1 :initarg :e1)
    (e2 :initarg :e2)))
 
 #|
-(test should-parse-expression
+(def-test should-parse-expression ()
   (lazy-let ((s #\s)
              (x #\x)
-             (one (make-instance 'exp))
-             (exp (choice (==> x
+             (one (make-instance 'expr))
+             (expr (choice (==> x
                                (lambda (x) (declare (ignore x)) one))
-                          (==> (~ exp s exp)
+                          (==> (~ expr s expr)
                                (lambda (cat)
                                  (make-instance 'sum
                                                 :e1 (car cat) :e2 (cddr cat))))
-                          (==> (~ exp s x)
+                          (==> (~ expr s x)
                                (lambda (cat)
                                  (make-instance 'sum :e1 (car cat) :e2 one)))
-                          (==> (~ x s exp)
+                          (==> (~ x s expr)
                                (lambda (cat)
                                  (make-instance 'sum :e1 one :e2 (cddr cat))))
-                          (==> exp #'identity)
+                          (==> expr #'identity)
                           (==> *epsilon*
                                (lambda (ep) (declare (ignore ep)) one))))
              (xin (make-lazy-input-stream
                    (make-string-input-stream "xsxsxsxsx"))))
     (is (equal '()
-               (car (parse exp xin))))))
+               (car (parse expr xin))))))
 |#
 
 (defclass s-exp ()
@@ -103,7 +103,7 @@
   ())
 
 #|
-(test should-parse-s-expression
+(def-test should-parse-s-expression ()
   (lazy-let ((s #\s)
              (lpar #\()
              (rpar #\))
@@ -129,7 +129,7 @@
          (- (get-universal-time) ,startvar)))))
 
 #|
-(test should-benchmark
+(def-test should-benchmark ()
   (lazy-let ((s #\s)
              (lpar #\()
              (rpar #\))
