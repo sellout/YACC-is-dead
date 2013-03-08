@@ -116,8 +116,9 @@
                          (make-instance 'sx-list :list sxlist))))
              (sin (make-lazy-input-stream
                    (make-string-input-stream "(sss(sss(s)(s)sss)ss(s))"))))
-    (is (equal '()
-               (car (parse sx sin))))))
+    ;; TODO: this is a pretty insignificant check
+    (is (equal 1
+               (length (parse sx sin))))))
 
 (eval-when (:compile-toplevel :load-toplevel :execute)  
   (defmacro benchmark (&body body)
