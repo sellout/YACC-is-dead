@@ -1,4 +1,4 @@
-(in-package #:yid)
+(in-package #:yacc-is-dead)
 
 (defun make-new-parser ()
   "Creates a new DEFSYNTAX parser, for holding rule-sets."
