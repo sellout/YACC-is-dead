@@ -102,8 +102,7 @@
 (defclass sx-nil (s-exp)
   ())
 
-#|
-(def-test should-parse-s-expression ()
+(def-test should-parse-s-expression
   (lazy-let ((s #\s)
              (lpar #\()
              (rpar #\))
@@ -119,7 +118,6 @@
                    (make-string-input-stream "(sss(sss(s)(s)sss)ss(s))"))))
     (is (equal '()
                (car (parse sx sin))))))
-|#
 
 (eval-when (:compile-toplevel :load-toplevel :execute)  
   (defmacro benchmark (&body body)
@@ -128,8 +126,7 @@
          ,@body
          (- (get-universal-time) ,startvar)))))
 
-#|
-(def-test should-benchmark ()
+(def-test should-benchmark
   (lazy-let ((s #\s)
              (lpar #\()
              (rpar #\))
@@ -145,19 +142,20 @@
                             "(ss()ss()ssssssssssssssssssssssssssssss()s(sss(s)(s)sss)ss(s))"
                             "(ss(())ss()ss()s((s)(s)sss)ss(s))"
                             "(ss((s))ss()ss()s((s)(s)sss)ss(s)(s)(s))"))
-             (trials (list 9 19 117 978 9171 118170 518170)))
+             ;; FIXME: restore longer trials
+             (trials (list 9 19 117 978 9171 #|118170 518170|#)))
     (dolist (trial trials)
-      (let* ((sexp-ns (apply #'concatenate
-                             'string
-                             (loop for i from 1 to trial
-                                for j = (random i)
-                                collecting (nth (mod (abs j)
-                                                     (length strings))
-                                                strings))))
+      (let* ((sexp-ns (reduce (lambda (a b)
+                                (concatenate 'string a b))
+                              (loop for i from 1 to trial
+                                 for j = (random i)
+                                 collecting (nth (mod (abs j)
+                                                      (length strings))
+                                                 strings))))
              (input (make-lazy-input-stream (make-string-input-stream sexp-ns)))
              (count 0)
              (time (benchmark (loop until (endp input)
-                                 do (destructuring-bind (tree rest)
+                                 do (destructuring-bind (tree . rest)
                                         (parse-partial sx input)
                                       (print (stream-car tree))
                                       (setf count (1+ count)
@@ -166,4 +164,3 @@
                    sexp~ds.length: ~d~@
                    time: ~d~%"
                 count trial (length sexp-ns) time)))))
-|#

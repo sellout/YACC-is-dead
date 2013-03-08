@@ -10,7 +10,8 @@
   :depends-on (lazy alexandria)
   :serial t
   :components ((:file "package")
-               (:file "yacc-is-dead"))
+               (:file "yacc-is-dead")
+               (:file "defsyntax"))
   :in-order-to ((test-op (load-op yacc-is-dead-tests)))
   :perform (test-op :after (op c)
                     (funcall (intern "RUN!" :yacc-is-dead-tests)
