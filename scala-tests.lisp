@@ -102,7 +102,7 @@
 (defclass sx-nil (s-exp)
   ())
 
-(def-test should-parse-s-expression
+(def-test should-parse-s-expression ()
   (lazy-let ((s #\s)
              (lpar #\()
              (rpar #\))
@@ -127,7 +127,7 @@
          ,@body
          (- (get-universal-time) ,startvar)))))
 
-(def-test should-benchmark
+(def-test should-benchmark ()
   (lazy-let ((s #\s)
              (lpar #\()
              (rpar #\))
